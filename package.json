@@ -1,0 +1,17 @@
+{
+  "name": "bun-add-bun-sqlite-postgres-bcrypt-jsonwebtoken-dotenv",
+  "module": "bun add -d bun:test",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.7",
+    "jsonwebtoken": "^9.0.2",
+    "postgres": "^3.4.5"
+  }
+}
