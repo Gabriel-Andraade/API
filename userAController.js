@@ -2,6 +2,7 @@ import sql from "./db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
+import { isReturnStatement } from "typescript";
 
 function isValidCPF(cpf) {
   cpf = cpf.replace(/\D/g, "");
@@ -11,14 +12,14 @@ function isValidCPF(cpf) {
   let sum = 0,
     remainder;
   for (let index = 1; index <= 9; index++)
-    sum += parseInt(cpf[index - 1]) * (11 - index);
+    sum += parseInt(cpf[index - 1], 10) * (11 - index);
   remainder = (sum * 10) % 11;
   if (remainder >= 10) remainder = 0;
   if (remainder !== parseInt(cpf[9])) return false;
 
   sum = 0;
   for (let index = 1; index <= 10; index++)
-    sum += parseInt(cpf[index - 1]) * (12 - index);
+    sum += parseInt(cpf[index - 1], 10) * (12 - index);
   remainder = (sum * 10) % 11;
   if (remainder >= 10) remainder = 0;
   if (remainder !== parseInt(cpf[10])) return false;
@@ -35,6 +36,7 @@ async function getUserByEmailOrCPF(email, cpf) {
 export async function register(req) {
   try {
     const body = await req.json();
+    console.log("Corpo recebido:", body); //para testar e encontrsr a falha.
     const { name, email, password } = body;
     let { cpf } = body;
     cpf = cpf.replace(/\D/g, "");
@@ -86,6 +88,9 @@ export async function login(req) {
   }
 }
 
+function authenticatetoken(req) {
+  const authHeader = req.headers.get("Authorization");
+}
 export async function getUser(req) {
   try {
     const body = await req.json();
