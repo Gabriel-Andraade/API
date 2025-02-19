@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import "dotenv/config";
 
 function isValidCPF(cpf) {
-  cpf = cpf.replace(/\D/g, ""); // Remove caracteres não numéricos
+  cpf = cpf.replace(/\D/g, "");
 
   if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
 
