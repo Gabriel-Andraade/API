@@ -1,4 +1,4 @@
-CREATE TABLE usuarios (
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     cpf VARCHAR(11) UNIQUE NOT NULL,
