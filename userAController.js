@@ -79,8 +79,8 @@ export function auth(route) {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      return await route(req, decoded);
+      const id = jwt.verify(token, process.env.JWT_SECRET);
+      return await route(req, id);
     } catch (error) {
       return new Response(null, { status: 403 });
     }
@@ -115,16 +115,15 @@ export async function login(req) {
   }
 }
 
-export async function getUser(req, decoded) {
+export async function getUser(req, id) {
   try {
-    const body = await req.json();
-    const { id, cpf } = body;
-    if (!id && !cpf) {
+    const { id } = req.params;
+    if (!id) {
       return new Response(null, { status: 400 });
     }
 
     const user =
-      await sql`SELECT id, name, email, cpf FROM users WHERE id = ${decoded.id}`;
+      await sql`SELECT id, name, email, cpf FROM users WHERE id = ${id}`;
     if (user.length === 0) {
       return new Response(null, { status: 404 });
     }
@@ -134,10 +133,31 @@ export async function getUser(req, decoded) {
     return new Response(null, { status: 500 });
   }
 }
+////para testar
+import { writeFile } from "fs/promises";
 
-export async function deleteUser(req, decoded) {
+export async function listUsers(req) {
   try {
-    const { rowCount } = await sql`DELETE FROM users WHERE id = ${decoded.id}`;
+    const users = await sql`SELECT id, name, email, cpf FROM users`;
+
+    // Converte para JSON
+    const jsonData = JSON.stringify(users, null, 2);
+
+    // Salva no arquivo listUsers.json
+    await writeFile("listUsers.json", jsonData, "utf8");
+
+    return Response.json(users, { status: 200 });
+  } catch (error) {
+    return new Response(null, { status: 500 });
+  }
+}
+
+////para testar
+
+export async function deleteUser(req, id) {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await sql`DELETE FROM users WHERE id = ${id}`;
     if (rowCount === 0) {
       return new Response(null, { status: 404 });
     }
@@ -147,8 +167,9 @@ export async function deleteUser(req, decoded) {
   }
 }
 
-export async function updateUser(req, decoded) {
+export async function updateUser(req, id) {
   try {
+    const { id } = req.params;
     const body = await req.json();
     const { name, email, password } = body;
     if (!name && !email && !password) {
@@ -166,7 +187,7 @@ export async function updateUser(req, decoded) {
     const { rowCount } = await sql`
       UPDATE users
       SET ${sql.join(updateFields, sql`, `)}
-      WHERE id = ${decoded.id}
+      WHERE id = ${id}
     `;
 
     if (rowCount === 0) {

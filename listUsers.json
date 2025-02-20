@@ -1,0 +1,30 @@
+[
+  {
+    "id": 2,
+    "name": "Fittipaldi",
+    "cpf": "12345678909",
+    "email": "lotus72d@gmail.com",
+    "password": "lotus1972"
+  },
+  {
+    "id": 3,
+    "name": "Niki Lauda",
+    "cpf": "11111111111",
+    "email": "ferrari@gmail.com",
+    "password": "forzaferrari76"
+  },
+  {
+    "id": 1,
+    "name": "Ayrton",
+    "cpf": "40440022015",
+    "email": "ayrton.senna@gmail.com",
+    "password": "mclaren88"
+  },
+  {
+    "id": 4,
+    "name": "James Hunt",
+    "cpf": "19283746509",
+    "email": "james.hunt@gmail.com",
+    "password": "mclaren76"
+  }
+]

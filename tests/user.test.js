@@ -1,35 +1,147 @@
-import { describe, expect, test } from "bun:test";
+import { expect, test, beforeAll, afterAll } from "bun:test";
+import server from "../server.js"; // Importando o servidor
+import userRoutes from "../userRoute.js"; // Importando as rotas
+import sql from "../db.js"; // Importando conexão com o banco de dados
+import {
+  register,
+  login,
+  getUser,
+  deleteUser,
+  updateUser,
+} from "../userAController.js";
 
-describe("User API", () => {
-  test("should register a user", async () => {
-    const response = await fetch("http://localhost:2345/register", {
-      method: "POST",
-      body: JSON.stringify({
-        name: "Niki",
-        email: "forzaferrari@email.com",
-        password: "Lauda",
-        cpf: "111.222.333.44",
-      }),
-      headers: { "Content-Type": "application/json" },
-    });
+// Usuários de teste
+const testUsers = [
+  {
+    name: "Ayrton Senna",
+    email: "ayrton@email.com",
+    password: "mclaren88",
+    cpf: "40440022015",
+  },
+  {
+    name: "Niki Lauda",
+    email: "niki@email.com",
+    password: "forzaferrari76",
+    cpf: "11111111111",
+  },
+  {
+    name: "James Hunt",
+    email: "hunt@email.com",
+    password: "mclaren76",
+    cpf: "19283746509",
+  },
+  {
+    name: "Usuário Inválido",
+    email: "invalido@email.com",
+    password: "test123",
+    cpf: "12345678900",
+  }, // CPF inválido
+];
 
-    const data = await response.json();
-    expect(response.status).toBe(201);
-    expect(data.message).toBe("Usuário criado com sucesso!");
-  });
+let tokens = {};
+let userIds = {};
 
-  test("should log in", async () => {
-    const response = await fetch("http://localhost:2345/login", {
-      method: "POST",
-      body: JSON.stringify({
-        email: "forzaferrari@email.com",
-        password: "Lauda",
-      }),
-      headers: { "Content-Type": "application/json" },
-    });
+beforeAll(async () => {
+  server.listen(3000);
+});
 
-    const data = await response.json();
-    expect(response.status).toBe(200);
-    expect(typeof data.token).toBe("string");
-  });
+beforeAll(async () => {
+  for (const user of testUsers) {
+    const req = { json: async () => user };
+    const res = await register(req);
+    if (res.status === 201) {
+      const loginRes = await login(req);
+      if (loginRes.status === 200) {
+        const { token } = await loginRes.json();
+        tokens[user.email] = token;
+      }
+    }
+  }
+});
+
+afterAll(async () => {
+  await sql`DELETE FROM users WHERE email IN (${testUsers.map(
+    (u) => u.email
+  )})`;
+});
+
+//  **Teste de Cadastro**
+test("Cadastro de usuário válido", async () => {
+  const req = { json: async () => testUsers[0] };
+  const res = await register(req);
+  expect(res.status).toBe(400);
+});
+
+test("Cadastro com CPF inválido", async () => {
+  const req = { json: async () => testUsers[3] };
+  const res = await register(req);
+  expect(res.status).toBe(400);
+});
+
+test("Login com credenciais corretas", async () => {
+  const req = {
+    json: async () => ({
+      email: testUsers[0].email,
+      password: testUsers[0].password,
+    }),
+  };
+  const res = await login(req);
+  expect(res.status).toBe(200);
+});
+
+test("Login com senha errada", async () => {
+  const req = {
+    json: async () => ({ email: testUsers[0].email, password: "senhaErrada" }),
+  };
+  const res = await login(req);
+  expect(res.status).toBe(401);
+});
+
+test("Buscar usuário por ID", async () => {
+  const req = { json: async () => ({}), params: { id: 1 } };
+  const res = await getUser(req, req.params.id);
+  expect(res.status).toBe(200);
+});
+
+test("Atualizar usuário", async () => {
+  const req = {
+    json: async () => ({ name: "Ayrton Senna atualizado" }),
+    params: { id: 1 },
+  };
+  const res = await updateUser(req, req.params.id);
+  expect(res.status).toBe(200);
+});
+
+test("Deletar usuário", async () => {
+  const req = { params: { id: 1 } };
+  const res = await deleteUser(req, req.params.id);
+  expect(res.status).toBe(200);
+});
+
+test("Deletar usuário inexistente", async () => {
+  const req = { params: { id: 999 } };
+  const res = await deleteUser(req, req.params.id);
+  expect(res.status).toBe(404);
+});
+
+test("Buscar usuário inexistente", async () => {
+  const req = { json: async () => ({}), params: { id: 999 } };
+  const res = await getUser(req, req.params.id);
+  expect(res.status).toBe(404);
+});
+
+test("Cadastro com CPF já cadastrado", async () => {
+  const req = { json: async () => testUsers[1] };
+  const res = await register(req);
+  expect(res.status).toBe(400);
+});
+
+test("Cadastro com e-mail já cadastrado", async () => {
+  const req = { json: async () => testUsers[0] };
+  const res = await register(req);
+  expect(res.status).toBe(400);
+});
+
+afterAll(async () => {
+  server.close();
 });
