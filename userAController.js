@@ -2,27 +2,32 @@ import sql from "./db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
-import { isReturnStatement } from "typescript";
+
+function cleanCPF(cpf) {
+  return cpf.replace(/\D/g, "");
+}
 
 function isValidCPF(cpf) {
-  cpf = cpf.replace(/\D/g, "");
-
   if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
 
   let sum = 0,
     remainder;
-  for (let index = 1; index <= 9; index++)
-    sum += parseInt(cpf[index - 1], 10) * (11 - index);
+
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cpf[i], 10) * (10 - i);
+  }
   remainder = (sum * 10) % 11;
-  if (remainder >= 10) remainder = 0;
-  if (remainder !== parseInt(cpf[9])) return false;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cpf[9], 10)) return false;
 
   sum = 0;
-  for (let index = 1; index <= 10; index++)
-    sum += parseInt(cpf[index - 1], 10) * (12 - index);
+
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(cpf[i], 10) * (11 - i);
+  }
   remainder = (sum * 10) % 11;
-  if (remainder >= 10) remainder = 0;
-  if (remainder !== parseInt(cpf[10])) return false;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cpf[10], 10)) return false;
 
   return true;
 }
@@ -36,14 +41,15 @@ async function getUserByEmailOrCPF(email, cpf) {
 export async function register(req) {
   try {
     const body = await req.json();
-    console.log("Corpo recebido:", body); //para testar e encontrsr a falha.
     const { name, email, password } = body;
     let { cpf } = body;
-    cpf = cpf.replace(/\D/g, "");
 
     if (!name || !email || !password || !cpf) {
       return new Response(null, { status: 400 });
     }
+
+    cpf = cleanCPF(cpf);
+
     if (!isValidCPF(cpf)) {
       return new Response(null, { status: 400 });
     }
@@ -60,6 +66,27 @@ export async function register(req) {
   }
 }
 
+export function auth(route) {
+  return async (req) => {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(null, { status: 403 });
+    }
+
+    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return new Response(null, { status: 403 });
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      return await route(req, decoded);
+    } catch (error) {
+      return new Response(null, { status: 403 });
+    }
+  };
+}
+
 export async function login(req) {
   try {
     const body = await req.json();
@@ -69,7 +96,7 @@ export async function login(req) {
       return new Response(null, { status: 400 });
     }
 
-    let formattedCpf = cpf ? cpf.replace(/\D/g, "") : null;
+    let formattedCpf = cpf ? cleanCPF(cpf) : null;
     if (cpf && !isValidCPF(formattedCpf)) {
       return new Response(null, { status: 400 });
     }
@@ -88,10 +115,7 @@ export async function login(req) {
   }
 }
 
-function authenticatetoken(req) {
-  const authHeader = req.headers.get("Authorization");
-}
-export async function getUser(req) {
+export async function getUser(req, decoded) {
   try {
     const body = await req.json();
     const { id, cpf } = body;
@@ -100,7 +124,7 @@ export async function getUser(req) {
     }
 
     const user =
-      await sql`SELECT id, name, email, cpf FROM users WHERE id = ${id} OR cpf = ${cpf}`;
+      await sql`SELECT id, name, email, cpf FROM users WHERE id = ${decoded.id}`;
     if (user.length === 0) {
       return new Response(null, { status: 404 });
     }
@@ -111,30 +135,23 @@ export async function getUser(req) {
   }
 }
 
-export async function deleteUser(req) {
+export async function deleteUser(req, decoded) {
   try {
-    const body = await req.json();
-    const { id } = body;
-    if (!id) {
-      return new Response(null, { status: 400 });
-    }
-
-    const { rowCount } = await sql`DELETE FROM users WHERE id = ${id}`;
+    const { rowCount } = await sql`DELETE FROM users WHERE id = ${decoded.id}`;
     if (rowCount === 0) {
       return new Response(null, { status: 404 });
     }
-
     return new Response(null, { status: 200 });
   } catch (error) {
     return new Response(null, { status: 500 });
   }
 }
 
-export async function updateUser(req) {
+export async function updateUser(req, decoded) {
   try {
     const body = await req.json();
-    const { id, name, email, password } = body;
-    if (!id || (!name && !email && !password)) {
+    const { name, email, password } = body;
+    if (!name && !email && !password) {
       return new Response(null, { status: 400 });
     }
 
@@ -146,14 +163,10 @@ export async function updateUser(req) {
       updateFields.push(sql`password = ${hashedPassword}`);
     }
 
-    if (updateFields.length === 0) {
-      return new Response(null, { status: 400 });
-    }
-
     const { rowCount } = await sql`
       UPDATE users
       SET ${sql.join(updateFields, sql`, `)}
-      WHERE id = ${id}
+      WHERE id = ${decoded.id}
     `;
 
     if (rowCount === 0) {
