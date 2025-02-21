@@ -1,6 +1,5 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import server from "../server.js"; // Importando o servidor
-import userRoutes from "../userRoute.js"; // Importando as rotas
 import sql from "../db.js"; // Importando conexão com o banco de dados
 import {
   register,
@@ -42,10 +41,7 @@ let tokens = {};
 let userIds = {};
 
 beforeAll(async () => {
-  server.listen(3000);
-});
-
-beforeAll(async () => {
+  // Registra e faz login dos usuários de teste
   for (const user of testUsers) {
     const req = { json: async () => user };
     const res = await register(req);
@@ -60,12 +56,16 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Limpa os usuários de teste do banco de dados após todos os testes
   await sql`DELETE FROM users WHERE email IN (${testUsers.map(
     (u) => u.email
   )})`;
+
+  // Fecha o servidor após todos os testes
+  server.stop();
 });
 
-//  **Teste de Cadastro**
+// Testes de Cadastro
 test("Cadastro de usuário válido", async () => {
   const req = { json: async () => testUsers[0] };
   const res = await register(req);
@@ -78,6 +78,7 @@ test("Cadastro com CPF inválido", async () => {
   expect(res.status).toBe(400);
 });
 
+// Testes de Login
 test("Login com credenciais corretas", async () => {
   const req = {
     json: async () => ({
@@ -97,6 +98,7 @@ test("Login com senha errada", async () => {
   expect(res.status).toBe(401);
 });
 
+// Testes de Usuário
 test("Buscar usuário por ID", async () => {
   const req = { json: async () => ({}), params: { id: 1 } };
   const res = await getUser(req, req.params.id);
@@ -140,8 +142,4 @@ test("Cadastro com e-mail já cadastrado", async () => {
   const req = { json: async () => testUsers[0] };
   const res = await register(req);
   expect(res.status).toBe(400);
-});
-
-afterAll(async () => {
-  server.close();
 });

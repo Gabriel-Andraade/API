@@ -79,8 +79,8 @@ export function auth(route) {
     }
 
     try {
-      const id = jwt.verify(token, process.env.JWT_SECRET);
-      return await route(req, id);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      return await route(req, decoded);
     } catch (error) {
       return new Response(null, { status: 403 });
     }
@@ -115,7 +115,7 @@ export async function login(req) {
   }
 }
 
-export async function getUser(req, id) {
+export async function getUser(req) {
   try {
     const { id } = req.params;
     if (!id) {
@@ -133,28 +133,8 @@ export async function getUser(req, id) {
     return new Response(null, { status: 500 });
   }
 }
-////para testar
-import { writeFile } from "fs/promises";
 
-export async function listUsers(req) {
-  try {
-    const users = await sql`SELECT id, name, email, cpf FROM users`;
-
-    // Converte para JSON
-    const jsonData = JSON.stringify(users, null, 2);
-
-    // Salva no arquivo listUsers.json
-    await writeFile("listUsers.json", jsonData, "utf8");
-
-    return Response.json(users, { status: 200 });
-  } catch (error) {
-    return new Response(null, { status: 500 });
-  }
-}
-
-////para testar
-
-export async function deleteUser(req, id) {
+export async function deleteUser(req) {
   try {
     const { id } = req.params;
     const { rowCount } = await sql`DELETE FROM users WHERE id = ${id}`;
@@ -167,7 +147,7 @@ export async function deleteUser(req, id) {
   }
 }
 
-export async function updateUser(req, id) {
+export async function updateUser(req) {
   try {
     const { id } = req.params;
     const body = await req.json();
@@ -199,3 +179,14 @@ export async function updateUser(req, id) {
     return new Response(null, { status: 500 });
   }
 }
+
+export async function listUsers(req) {
+  try {
+    const users = await sql`SELECT id, name, email, cpf FROM users`;
+    return Response.json(users, { status: 200 });
+  } catch (error) {
+    return new Response(null, { status: 500 });
+  }
+}
+
+//aqui vou mexer em tudo, tem algo atrapalhando o código

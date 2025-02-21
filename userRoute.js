@@ -7,6 +7,8 @@ import {
   listUsers,
 } from "./userAController.js";
 
+//anmanhã faço adição direita do userRoute
+
 export default async function userRoutes(req) {
   const url = new URL(req.url);
   const method = req.method;
