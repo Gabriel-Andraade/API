@@ -7,32 +7,81 @@ import {
   listUsers,
 } from "./userAController.js";
 
-//anmanhã faço adição direita do userRoute
+// Define as rotas com seus handlers por método HTTP
+const routes = {
+  "/register": {
+    POST: register,
+  },
+  "/login": {
+    POST: login,
+  },
+  "/users": {
+    GET: listUsers,
+  },
+  "/users/:id": {
+    GET: getUser,
+    PUT: updateUser,
+    DELETE: deleteUser,
+  },
+};
+
+// Função para fazer o matching da URL com o padrão definido
+function matchRoute(urlPath, routePattern) {
+  const urlSegments = urlPath.split("/").filter(Boolean);
+  const patternSegments = routePattern.split("/").filter(Boolean);
+  if (urlSegments.length !== patternSegments.length) return { matched: false };
+
+  const params = {};
+  for (let i = 0; i < patternSegments.length; i++) {
+    const p = patternSegments[i];
+    const segment = urlSegments[i];
+    if (p.startsWith(":")) {
+      // Extrai o parâmetro (ex: ":id" se torna "id")
+      params[p.slice(1)] = segment;
+    } else if (p !== segment) {
+      return { matched: false };
+    }
+  }
+  return { matched: true, params };
+}
 
 export default async function userRoutes(req) {
   const url = new URL(req.url);
+  const pathname = url.pathname;
   const method = req.method;
-  const pathParts = url.pathname.split("/").filter(Boolean);
 
-  if (url.pathname === "/register" && method === "POST") {
-    return register(req);
+  // Cabeçalhos padrão (incluindo CORS)
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  // Resposta para requisições OPTIONS (CORS preflight)
+  if (method === "OPTIONS") {
+    return new Response(null, { status: 204, headers });
   }
 
-  if (url.pathname === "/login" && method === "POST") {
-    return login(req);
+  // Procura pela rota que corresponda ao pathname
+  for (const routePattern in routes) {
+    const { matched, params } = matchRoute(pathname, routePattern);
+    if (matched) {
+      const handler = routes[routePattern][method];
+      if (handler) {
+        // Insere os parâmetros extraídos em req.params
+        req.params = params;
+        return await handler(req);
+      }
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405,
+        headers,
+      });
+    }
   }
 
-  if (url.pathname === "/users" && method === "GET") {
-    return listUsers(req);
-  }
-
-  if (pathParts[0] === "users" && pathParts.length === 2) {
-    const id = pathParts[1];
-
-    if (method === "GET") return getUser(req, id);
-    if (method === "DELETE") return deleteUser(req, id);
-    if (method === "PUT") return updateUser(req, id);
-  }
-
-  return new Response("Rota não encontrada", { status: 404 });
+  return new Response(JSON.stringify({ error: "Not Found" }), {
+    status: 404,
+    headers,
+  });
 }

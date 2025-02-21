@@ -1,7 +1,7 @@
+import "dotenv/config";
 import sql from "./db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import "dotenv/config";
 
 function cleanCPF(cpf) {
   return cpf.replace(/\D/g, "");
@@ -12,7 +12,6 @@ function isValidCPF(cpf) {
 
   let sum = 0,
     remainder;
-
   for (let i = 0; i < 9; i++) {
     sum += parseInt(cpf[i], 10) * (10 - i);
   }
@@ -21,7 +20,6 @@ function isValidCPF(cpf) {
   if (remainder !== parseInt(cpf[9], 10)) return false;
 
   sum = 0;
-
   for (let i = 0; i < 10; i++) {
     sum += parseInt(cpf[i], 10) * (11 - i);
   }
@@ -33,70 +31,50 @@ function isValidCPF(cpf) {
 }
 
 async function getUserByEmailOrCPF(email, cpf) {
-  const user =
-    await sql`SELECT id, password FROM users WHERE email = ${email} OR cpf = ${cpf} LIMIT 1`;
+  const user = await sql`
+    SELECT id, password FROM users 
+    WHERE email = ${email} OR cpf = ${cpf} 
+    LIMIT 1
+  `;
   return user.length > 0 ? user[0] : null;
 }
 
 export async function register(req) {
   try {
-    const body = await req.json();
-    const { name, email, password } = body;
-    let { cpf } = body;
-
+    const { name, email, password, cpf } = await req.json();
     if (!name || !email || !password || !cpf) {
       return new Response(null, { status: 400 });
     }
 
-    cpf = cleanCPF(cpf);
-
-    if (!isValidCPF(cpf)) {
+    const cleanedCPF = cleanCPF(cpf);
+    if (!isValidCPF(cleanedCPF)) {
       return new Response(null, { status: 400 });
     }
 
-    if (await getUserByEmailOrCPF(email, cpf)) {
+    if (await getUserByEmailOrCPF(email, cleanedCPF)) {
       return new Response(null, { status: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    await sql`INSERT INTO users (name, email, password, cpf) VALUES (${name}, ${email}, ${hashedPassword}, ${cpf})`;
+    await sql`
+      INSERT INTO users (name, email, password, cpf)
+      VALUES (${name}, ${email}, ${hashedPassword}, ${cleanedCPF})
+    `;
     return new Response(null, { status: 201 });
   } catch (error) {
+    console.error("Erro no register:", error);
     return new Response(null, { status: 500 });
   }
 }
 
-export function auth(route) {
-  return async (req) => {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(null, { status: 403 });
-    }
-
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      return new Response(null, { status: 403 });
-    }
-
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      return await route(req, decoded);
-    } catch (error) {
-      return new Response(null, { status: 403 });
-    }
-  };
-}
-
 export async function login(req) {
   try {
-    const body = await req.json();
-    const { email, cpf, password } = body;
-
+    const { email, cpf, password } = await req.json();
     if ((!email && !cpf) || !password) {
       return new Response(null, { status: 400 });
     }
 
-    let formattedCpf = cpf ? cleanCPF(cpf) : null;
+    const formattedCpf = cpf ? cleanCPF(cpf) : null;
     if (cpf && !isValidCPF(formattedCpf)) {
       return new Response(null, { status: 400 });
     }
@@ -109,49 +87,58 @@ export async function login(req) {
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
-    return Response.json({ token }, { status: 200 });
+    return new Response(JSON.stringify({ token }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
+    console.error("Erro no login:", error);
     return new Response(null, { status: 500 });
   }
 }
 
 export async function getUser(req) {
   try {
-    const { id } = req.params;
+    const id = req.params ? req.params.id : undefined;
     if (!id) {
       return new Response(null, { status: 400 });
     }
-
-    const user =
-      await sql`SELECT id, name, email, cpf FROM users WHERE id = ${id}`;
+    const user = await sql`
+      SELECT id, name, email, cpf FROM users WHERE id = ${id}
+    `;
     if (user.length === 0) {
       return new Response(null, { status: 404 });
     }
-
-    return Response.json(user[0], { status: 200 });
+    return new Response(JSON.stringify(user[0]), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
+    console.error("Erro no getUser:", error);
     return new Response(null, { status: 500 });
   }
 }
 
 export async function deleteUser(req) {
   try {
-    const { id } = req.params;
-    const { rowCount } = await sql`DELETE FROM users WHERE id = ${id}`;
+    const id = req.params ? req.params.id : undefined;
+    const { rowCount } = await sql`
+      DELETE FROM users WHERE id = ${id}
+    `;
     if (rowCount === 0) {
       return new Response(null, { status: 404 });
     }
     return new Response(null, { status: 200 });
   } catch (error) {
+    console.error("Erro no deleteUser:", error);
     return new Response(null, { status: 500 });
   }
 }
 
 export async function updateUser(req) {
   try {
-    const { id } = req.params;
-    const body = await req.json();
-    const { name, email, password } = body;
+    const id = req.params ? req.params.id : undefined;
+    const { name, email, password } = await req.json();
     if (!name && !email && !password) {
       return new Response(null, { status: 400 });
     }
@@ -169,24 +156,27 @@ export async function updateUser(req) {
       SET ${sql.join(updateFields, sql`, `)}
       WHERE id = ${id}
     `;
-
     if (rowCount === 0) {
       return new Response(null, { status: 404 });
     }
-
     return new Response(null, { status: 200 });
   } catch (error) {
+    console.error("Erro no updateUser:", error);
     return new Response(null, { status: 500 });
   }
 }
 
 export async function listUsers(req) {
   try {
-    const users = await sql`SELECT id, name, email, cpf FROM users`;
-    return Response.json(users, { status: 200 });
+    const users = await sql`
+      SELECT id, name, email, cpf FROM users
+    `;
+    return new Response(JSON.stringify(users), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
+    console.error("Erro no listUsers:", error);
     return new Response(null, { status: 500 });
   }
 }
-
-//aqui vou mexer em tudo, tem algo atrapalhando o código
