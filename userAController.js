@@ -122,12 +122,19 @@ export async function getUser(req) {
 export async function deleteUser(req) {
   try {
     const id = req.params ? req.params.id : undefined;
+    if (!id) {
+      console.error("ID não fornecido");
+      return new Response(null, { status: 400 });
+    }
+    console.log(`Tentando deletar usuário com ID: ${id}`);
     const { rowCount } = await sql`
       DELETE FROM users WHERE id = ${id}
     `;
     if (rowCount === 0) {
+      console.error(`Usuário com ID ${id} não encontrado`);
       return new Response(null, { status: 404 });
     }
+    console.log(`Usuário com ID ${id} deletado com sucesso`);
     return new Response(null, { status: 200 });
   } catch (error) {
     console.error("Erro no deleteUser:", error);
@@ -138,6 +145,11 @@ export async function deleteUser(req) {
 export async function updateUser(req) {
   try {
     const id = req.params ? req.params.id : undefined;
+    if (!id) {
+      console.error("ID não fornecido");
+      return new Response(null, { status: 400 });
+    }
+
     const { name, email, password } = await req.json();
     if (!name && !email && !password) {
       return new Response(null, { status: 400 });
@@ -165,7 +177,6 @@ export async function updateUser(req) {
     return new Response(null, { status: 500 });
   }
 }
-
 export async function listUsers(req) {
   try {
     const users = await sql`

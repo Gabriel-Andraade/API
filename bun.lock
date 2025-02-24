@@ -933,7 +933,7 @@
       "denque@2.1.0",
       "",
       {},
-      "sha512-HVQE3AAb/pxF8fQAoiqpvg9i3evqug3hoiwakOyZAwJm+6vZehbkYXZ0l4JxS+I3QxM97v5aaRNhj8v5oBhekw=="
+      "sha512-HVQE3AAb/pxF8fQAoiqpvg9i3evqug3hoiwakOyCFLMbdUiBAxLg9CFzG08sz2aqzknwiX7Hkl0bQENjg8iLByw=="
     ],
 
     "depd": [
